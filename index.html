@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full bg-slate-950 text-slate-100">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitFlow 3D - Calculadora Médica de IMC</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Canvas Confetti -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <!-- Vanilla Tilt JS for 3D Parallax tilt effect -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.1/vanilla-tilt.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdfa',
+                            400: '#2dd4bf',
+                            500: '#14b8a6',
+                            600: '#0d9488',
+                            900: '#134e4a',
+                        }
+                    },
+                    boxShadow: {
+                        '3d-subtle': '0 10px 30px -10px rgba(0,0,0,0.5), inset 0 1px 1px 0 rgba(255,255,255,0.1)',
+                        '3d-card': '0 20px 40px -15px rgba(0,0,0,0.7), inset 0 1px 2px 0 rgba(255,255,255,0.15), 0 0 0 1px rgba(255,255,255,0.05)',
+                        '3d-glow': '0 0 35px -5px rgba(20, 184, 166, 0.35), inset 0 1px 1px rgba(255,255,255,0.2)',
+                        'inner-3d': 'inset 0 4px 12px 0 rgba(0, 0, 0, 0.6), 0 1px 2px 0 rgba(255, 255, 255, 0.05)'
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap');
+        
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #030712;
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(20, 184, 166, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+                radial-gradient(at 50% 100%, rgba(15, 23, 42, 0.9) 0px, transparent 100%);
+            background-attachment: fixed;
+        }
+
+        /* 3D Glass Layering */
+        .glass-3d {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.07) 0%, rgba(255, 255, 255, 0.02) 100%);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transform-style: preserve-3d;
+        }
+
+        .glass-3d-inset {
+            background: rgba(3, 7, 18, 0.6);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .perspective-1000 {
+            perspective: 1000px;
+        }
+
+        .preserve-3d {
+            transform-style: preserve-3d;
+        }
+
+        .translate-z-10 { transform: translateZ(10px); }
+        .translate-z-20 { transform: translateZ(20px); }
+        .translate-z-30 { transform: translateZ(30px); }
+
+        /* Custom 3D Arc Gauge */
+        .gauge-arc-bg {
+            stroke: #1e293b;
+            stroke-dasharray: 283;
+            stroke-dashoffset: 0;
+        }
+
+        .gauge-arc-fill {
+            transition: stroke-dashoffset 1s cubic-bezier(0.34, 1.56, 0.64, 1), stroke 0.5s ease;
+            stroke-dasharray: 283;
+            stroke-dashoffset: 283;
+        }
+
+        /* Custom Slider Styling */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+        input[type=range]:focus {
+            outline: none;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 8px;
+            cursor: pointer;
+            background: #0f172a;
+            border-radius: 9999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+        }
+        input[type=range]::-webkit-slider-thumb {
+            height: 22px;
+            width: 22px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #2dd4bf 0%, #0d9488 100%);
+            cursor: pointer;
+            -webkit-appearance: none;
+            margin-top: -7px;
+            box-shadow: 0 0 12px rgba(45, 212, 191, 0.8), 0 4px 6px rgba(0, 0, 0, 0.4);
+            border: 2px solid #ffffff;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            box-shadow: 0 0 18px rgba(45, 212, 191, 1), 0 6px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(51, 65, 85, 0.8);
+            border-radius: 8px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(71, 85, 105, 1);
+        }
+    </style>
+</head>
+<body class="min-h-full flex flex-col antialiased selection:bg-teal-500 selection:text-white pb-10">
+
+    <!-- Navigation Header -->
+    <header class="w-full border-b border-slate-800/80 bg-slate-950/70 backdrop-blur-xl sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-18 flex items-center justify-between py-3">
+            <div class="flex items-center space-x-3">
+                <div class="relative p-2.5 bg-gradient-to-tr from-teal-500 via-sky-500 to-indigo-600 rounded-2xl shadow-3d-glow transform hover:rotate-3 transition duration-300">
+                    <i data-lucide="scale" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <h1 class="font-black text-xl tracking-tight bg-gradient-to-r from-teal-300 via-sky-300 to-indigo-300 bg-clip-text text-transparent">
+                            FITFLOW 3D
+                        </h1>
+                        <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-300 border border-teal-500/20">PRO</span>
+                    </div>
+                    <p class="text-xs text-slate-400 font-medium">Analizador Médico e Índice de Masa Corporal</p>
+                </div>
+            </div>
+
+            <div class="flex items-center space-x-3">
+                <button id="btn-sound" onclick="toggleAudio()" class="px-3.5 py-2 rounded-xl glass-3d hover:bg-slate-800/60 text-slate-300 text-xs font-semibold flex items-center gap-2 transition-all shadow-3d-subtle active:translate-y-0.5">
+                    <i data-lucide="volume-2" id="icon-sound" class="w-4 h-4 text-teal-400"></i>
+                    <span id="label-sound" class="hidden sm:inline">Sonido: ON</span>
+                </button>
+                <button onclick="resetDefaults()" class="px-3.5 py-2 rounded-xl glass-3d hover:bg-slate-800/60 text-slate-300 text-xs font-semibold flex items-center gap-2 transition-all shadow-3d-subtle active:translate-y-0.5">
+                    <i data-lucide="rotate-ccw" class="w-4 h-4 text-sky-400"></i>
+                    <span class="hidden sm:inline">Reiniciar</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Container -->
+    <main class="max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-8 flex-grow grid grid-cols-1 lg:grid-cols-12 gap-8 perspective-1000">
+
+        <!-- LEFT COLUMN: Interactive 3D Input Panel -->
+        <div class="lg:col-span-5 space-y-6 flex flex-col">
+            
+            <div class="glass-3d rounded-3xl p-6 sm:p-8 shadow-3d-card relative overflow-hidden preserve-3d" data-tilt data-tilt-max="4" data-tilt-speed="400" data-tilt-glare data-tilt-max-glare="0.08">
+                <!-- Decorative Ambient Lighting -->
+                <div class="absolute -top-20 -right-20 w-48 h-48 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="absolute -bottom-20 -left-20 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="flex items-center justify-between mb-6 translate-z-20">
+                    <div class="flex items-center gap-2.5">
+                        <div class="p-2 rounded-xl bg-slate-800/80 text-teal-400 border border-slate-700/50 shadow-inner-3d">
+                            <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
+                        </div>
+                        <h2 class="text-lg font-bold text-slate-100 tracking-wide">Parámetros Físicos</h2>
+                    </div>
+                    <span class="text-xs text-slate-400 font-mono font-medium bg-slate-900/80 px-2.5 py-1 rounded-lg border border-slate-800">
+                        Paso 1 de 2
+                    </span>
+                </div>
+
+                <form id="imc-form" onsubmit="event.preventDefault();" class="space-y-6 translate-z-10">
+                    
+                    <!-- Peso Section -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label for="peso" class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                                <i data-lucide="weight" class="w-4 h-4 text-teal-400"></i> Peso Corporal
+                            </label>
+                            <div class="flex items-baseline gap-1 bg-slate-900/90 px-3 py-1 rounded-xl border border-teal-500/30 shadow-inner-3d">
+                                <span id="peso-display" class="text-lg font-black font-mono text-teal-300">70.0</span>
+                                <span class="text-xs text-slate-400 font-bold">kg</span>
+                            </div>
+                        </div>
+
+                        <div class="relative flex items-center">
+                            <input type="number" id="peso" step="0.1" min="20" max="250" value="70.0" 
+                                class="w-full glass-3d-inset rounded-2xl px-4 py-3.5 text-slate-100 text-base font-bold focus:outline-none focus:ring-2 focus:ring-teal-500/50 transition-all shadow-inner-3d pl-11">
+                            <i data-lucide="hash" class="w-5 h-5 text-slate-500 absolute left-3.5"></i>
+                        </div>
+
+                        <input type="range" id="peso-range" min="30" max="180" step="0.5" value="70.0" class="w-full mt-1">
+                        <div class="flex justify-between text-[10px] font-mono text-slate-500 font-semibold px-1">
+                            <span>30 kg</span>
+                            <span>105 kg</span>
+                            <span>180 kg</span>
+                        </div>
+                    </div>
+
+                    <!-- Talla Section -->
+                    <div class="space-y-2 pt-2">
+                        <div class="flex justify-between items-center">
+                            <label for="talla" class="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+                                <i data-lucide="ruler" class="w-4 h-4 text-sky-400"></i> Estatura / Talla
+                            </label>
+
+                            <!-- Unit Toggle Switch -->
+                            <div class="bg-slate-950 p-0.5 rounded-xl border border-slate-800 flex items-center shadow-inner-3d">
+                                <button type="button" id="unit-m" onclick="switchUnit('m')" class="text-[11px] px-2.5 py-1 rounded-lg bg-gradient-to-r from-teal-500 to-teal-600 text-white font-bold transition shadow-sm">Metros (m)</button>
+                                <button type="button" id="unit-cm" onclick="switchUnit('cm')" class="text-[11px] px-2.5 py-1 rounded-lg text-slate-400 font-bold transition hover:text-slate-200">Centímetros (cm)</button>
+                            </div>
+                        </div>
+
+                        <div class="relative flex items-center">
+                            <input type="number" id="talla" step="0.01" min="0.5" max="2.5" value="1.70" 
+                                class="w-full glass-3d-inset rounded-2xl px-4 py-3.5 text-slate-100 text-base font-bold focus:outline-none focus:ring-2 focus:ring-sky-500/50 transition-all shadow-inner-3d pl-11">
+                            <i data-lucide="maximize-2" class="w-5 h-5 text-slate-500 absolute left-3.5"></i>
+                        </div>
+
+                        <input type="range" id="talla-range" min="1.00" max="2.20" step="0.01" value="1.70" class="w-full mt-1">
+                        <div class="flex justify-between text-[10px] font-mono text-slate-500 font-semibold px-1">
+                            <span id="range-min-label">1.00 m</span>
+                            <span id="range-mid-label">1.60 m</span>
+                            <span id="range-max-label">2.20 m</span>
+                        </div>
+                    </div>
+
+                </form>
+
+                <!-- Quick Preset Profiles -->
+                <div class="mt-8 pt-5 border-t border-slate-800/80 translate-z-10">
+                    <span class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 block mb-3">
+                        Perfiles de Ejemplo Rápido
+                    </span>
+                    <div class="grid grid-cols-3 gap-2.5">
+                        <button onclick="setPreset(52, 1.70)" class="px-2.5 py-2 rounded-xl glass-3d-inset hover:border-teal-500/40 text-xs font-semibold text-slate-300 transition text-center hover:scale-105 active:scale-95 shadow-3d-subtle">
+                            <span class="block text-teal-400 font-mono font-bold">52 kg</span>
+                            <span class="text-[10px] text-slate-400">1.70 m</span>
+                        </button>
+                        <button onclick="setPreset(68, 1.72)" class="px-2.5 py-2 rounded-xl glass-3d-inset hover:border-emerald-500/40 text-xs font-semibold text-slate-300 transition text-center hover:scale-105 active:scale-95 shadow-3d-subtle">
+                            <span class="block text-emerald-400 font-mono font-bold">68 kg</span>
+                            <span class="text-[10px] text-slate-400">1.72 m</span>
+                        </button>
+                        <button onclick="setPreset(95, 1.75)" class="px-2.5 py-2 rounded-xl glass-3d-inset hover:border-amber-500/40 text-xs font-semibold text-slate-300 transition text-center hover:scale-105 active:scale-95 shadow-3d-subtle">
+                            <span class="block text-amber-400 font-mono font-bold">95 kg</span>
+                            <span class="text-[10px] text-slate-400">1.75 m</span>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Ideal Weight Target Card -->
+            <div class="glass-3d rounded-2xl p-5 shadow-3d-subtle flex items-center justify-between border border-slate-800">
+                <div class="flex items-center gap-3">
+                    <div class="p-2.5 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                        <i data-lucide="target" class="w-5 h-5"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-xs font-bold text-slate-300 uppercase tracking-wider">Rango de Peso Ideal</h4>
+                        <p class="text-xs text-slate-400">Basado en tu estatura actual</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <span id="ideal-weight-range" class="text-base font-black font-mono text-teal-300 block">53.5 - 72.2</span>
+                    <span class="text-[10px] font-bold text-slate-400">Kilogramos</span>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: 3D Gauge Meter & Analytical Diagnostics -->
+        <div class="lg:col-span-7 space-y-6 flex flex-col">
+            
+            <!-- Main Result & 3D Meter Display Card -->
+            <div class="glass-3d rounded-3xl p-6 sm:p-8 shadow-3d-card relative overflow-hidden flex-grow flex flex-col justify-between preserve-3d" data-tilt data-tilt-max="3" data-tilt-speed="400">
+                
+                <div class="flex justify-between items-start mb-4 translate-z-20">
+                    <div>
+                        <span class="text-xs font-extrabold uppercase tracking-widest text-slate-400 block mb-1">
+                            Diagnóstico Bioestadístico
+                        </span>
+                        <h3 id="category-title" class="text-2xl sm:text-3xl font-black text-slate-100 tracking-tight">
+                            Calculando...
+                        </h3>
+                    </div>
+
+                    <div id="category-badge" class="px-3.5 py-1.5 rounded-2xl text-xs font-black uppercase tracking-wider border shadow-3d-subtle transition-all duration-500">
+                        Pendiente
+                    </div>
+                </div>
+
+                <!-- 3D Arc Gauge Visualizer -->
+                <div class="my-4 relative flex flex-col items-center justify-center translate-z-30">
+                    <div class="relative w-64 h-36 sm:w-80 sm:h-44 flex items-center justify-center">
+                        <svg class="w-full h-full transform overflow-visible" viewBox="0 0 200 110">
+                            <defs>
+                                <linearGradient id="gauge-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#38bdf8" />
+                                    <stop offset="20%" stop-color="#34d399" />
+                                    <stop offset="45%" stop-color="#fbbf24" />
+                                    <stop offset="70%" stop-color="#fb923c" />
+                                    <stop offset="88%" stop-color="#f87171" />
+                                    <stop offset="100%" stop-color="#c084fc" />
+                                </linearGradient>
+                                <filter id="glow-3d" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="3" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                </filter>
+                            </defs>
+
+                            <!-- Background Gauge Track -->
+                            <path d="M 20,100 A 80,80 0 0,1 180,100" fill="none" class="gauge-arc-bg" stroke-width="14" stroke-linecap="round" />
+                            
+                            <!-- Dynamic Colored Gauge Arc -->
+                            <path id="gauge-fill" d="M 20,100 A 80,80 0 0,1 180,100" fill="none" class="gauge-arc-fill" stroke="url(#gauge-gradient)" stroke-width="14" stroke-linecap="round" filter="url(#glow-3d)" />
+
+                            <!-- Ticks along arc -->
+                            <circle cx="20" cy="100" r="2" fill="#64748b" />
+                            <circle cx="44.6" cy="43.4" r="2" fill="#64748b" />
+                            <circle cx="100" cy="20" r="2" fill="#64748b" />
+                            <circle cx="155.4" cy="43.4" r="2" fill="#64748b" />
+                            <circle cx="180" cy="100" r="2" fill="#64748b" />
+                        </svg>
+
+                        <!-- Centered Animated Floating Numeric Value -->
+                        <div class="absolute bottom-1 text-center flex flex-col items-center">
+                            <span id="imc-number" class="text-4xl sm:text-5xl font-black font-mono tracking-tight bg-gradient-to-r from-teal-300 via-sky-300 to-indigo-300 bg-clip-text text-transparent drop-shadow-md">
+                                00.0
+                            </span>
+                            <span class="text-xs font-extrabold uppercase text-slate-400 tracking-wider -mt-1">kg/m²</span>
+                        </div>
+                    </div>
+
+                    <!-- Scale range labels under the arc -->
+                    <div class="w-full max-w-sm flex justify-between text-[11px] font-mono text-slate-400 font-bold px-2 mt-2">
+                        <span class="text-sky-400">&lt;18.5</span>
+                        <span class="text-emerald-400">18.5-24.9</span>
+                        <span class="text-amber-400">25-29.9</span>
+                        <span class="text-orange-400">30-34.9</span>
+                        <span class="text-rose-400">35-39.9</span>
+                        <span class="text-purple-400">&ge;40</span>
+                    </div>
+                </div>
+
+                <!-- Comprehensive Description Box -->
+                <div class="glass-3d-inset rounded-2xl p-4 sm:p-5 border border-slate-800/80 mb-4 translate-z-10">
+                    <p id="category-desc" class="text-xs sm:text-sm text-slate-300 leading-relaxed font-normal">
+                        Cargando evaluación...
+                    </p>
+                </div>
+
+                <!-- Health Advice & Clinical Guidance -->
+                <div class="space-y-3 translate-z-10">
+                    <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-teal-400">
+                        <i data-lucide="shield-alert" class="w-4 h-4"></i>
+                        <span>Recomendación Sanitaria Profesional</span>
+                    </div>
+                    <p id="health-advice" class="text-xs text-slate-300 leading-relaxed bg-slate-900/60 p-3.5 rounded-xl border border-slate-800">
+                        ...
+                    </p>
+                </div>
+
+            </div>
+
+            <!-- History Log Panel -->
+            <div class="glass-3d rounded-2xl p-5 shadow-3d-subtle border border-slate-800">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="p-1.5 rounded-lg bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
+                            <i data-lucide="history" class="w-4 h-4"></i>
+                        </div>
+                        <h4 class="text-xs font-bold text-slate-200 uppercase tracking-wider">Historial de Mediciones</h4>
+                    </div>
+                    <button onclick="clearHistory()" class="text-[11px] text-slate-500 hover:text-rose-400 font-semibold transition">
+                        Borrar Historial
+                    </button>
+                </div>
+
+                <div id="history-container" class="grid grid-cols-1 sm:grid-cols-3 gap-2.5 max-h-28 overflow-y-auto pr-1">
+                    <p class="text-xs text-slate-500 col-span-3 text-center py-2">Sin registros recientes.</p>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <script>
+        // Sound Engine using Web Audio API
+        let audioEnabled = true;
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        let audioCtx = null;
+
+        function playSound(freq = 520, type = 'sine', duration = 0.08) {
+            if (!audioEnabled) return;
+            try {
+                if (!audioCtx) audioCtx = new AudioContext();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + duration);
+            } catch (e) {
+                console.log(e);
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            document.getElementById('label-sound').innerText = audioEnabled ? 'Sonido: ON' : 'Sonido: OFF';
+            document.getElementById('icon-sound').setAttribute('data-lucide', audioEnabled ? 'volume-2' : 'volume-x');
+            lucide.createIcons();
+        }
+
+        // Unit state
+        let currentUnit = 'm'; // 'm' or 'cm'
+
+        function switchUnit(unit) {
+            if (currentUnit === unit) return;
+            currentUnit = unit;
+
+            const mBtn = document.getElementById('unit-m');
+            const cmBtn = document.getElementById('unit-cm');
+            const tallaInput = document.getElementById('talla');
+            const tallaRange = document.getElementById('talla-range');
+
+            if (unit === 'm') {
+                mBtn.className = "text-[11px] px-2.5 py-1 rounded-lg bg-gradient-to-r from-teal-500 to-teal-600 text-white font-bold transition shadow-sm";
+                cmBtn.className = "text-[11px] px-2.5 py-1 rounded-lg text-slate-400 font-bold transition hover:text-slate-200";
+                
+                tallaInput.step = "0.01";
+                tallaInput.min = "0.50";
+                tallaInput.max = "2.50";
+                tallaRange.min = "1.00";
+                tallaRange.max = "2.20";
+                tallaRange.step = "0.01";
+
+                tallaInput.value = (parseFloat(tallaInput.value) / 100).toFixed(2);
+                document.getElementById('range-min-label').innerText = "1.00 m";
+                document.getElementById('range-mid-label').innerText = "1.60 m";
+                document.getElementById('range-max-label').innerText = "2.20 m";
+            } else {
+                cmBtn.className = "text-[11px] px-2.5 py-1 rounded-lg bg-gradient-to-r from-teal-500 to-teal-600 text-white font-bold transition shadow-sm";
+                mBtn.className = "text-[11px] px-2.5 py-1 rounded-lg text-slate-400 font-bold transition hover:text-slate-200";
+
+                tallaInput.step = "1";
+                tallaInput.min = "50";
+                tallaInput.max = "250";
+                tallaRange.min = "100";
+                tallaRange.max = "220";
+                tallaRange.step = "1";
+
+                tallaInput.value = Math.round(parseFloat(tallaInput.value) * 100);
+                document.getElementById('range-min-label').innerText = "100 cm";
+                document.getElementById('range-mid-label').innerText = "160 cm";
+                document.getElementById('range-max-label').innerText = "220 cm";
+            }
+            tallaRange.value = tallaInput.value;
+            calculateIMC();
+        }
+
+        // Data Models for Classification
+        const IMC_CATEGORIES = [
+            {
+                key: "bajo_peso",
+                label: "Bajo peso",
+                min: 0,
+                max: 18.5,
+                color: "#38bdf8",
+                badgeClass: "bg-sky-500/10 text-sky-400 border-sky-500/30",
+                description: "El índice de masa corporal se encuentra por debajo del estándar recomendado por la Organización Mundial de la Salud. Podría estar asociado a deficiencias nutricionales.",
+                advice: "Se aconseja evaluar un plan de nutrición hipercalórico saludable bajo supervisión médica, enfocado en ganar masa muscular.",
+                gaugeOffset: 283 - (283 * 0.12)
+            },
+            {
+                key: "peso_normal",
+                label: "Peso normal",
+                min: 18.5,
+                max: 25,
+                color: "#34d399",
+                badgeClass: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
+                description: "¡Felicidades! Tu peso corporal está en perfecta consonancia proporcional con tu estatura, lo que favorece tu salud cardiovascular y metabólica.",
+                advice: "Conserva hábitos de vida activos e ingesta de alimentos integrales, verduras y proteínas magras de forma sostenida.",
+                gaugeOffset: 283 - (283 * 0.35)
+            },
+            {
+                key: "sobrepeso",
+                label: "Sobrepeso",
+                min: 25,
+                max: 30,
+                color: "#fbbf24",
+                badgeClass: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+                description: "Se detecta un nivel ponderal moderadamente superior al óptimo. Es una etapa ideal para adoptar correcciones preventivas.",
+                advice: "Sugerimos integrar al menos 150 minutos semanales de actividad física aeróbica y moderar el consumo de carbohidratos refinados.",
+                gaugeOffset: 283 - (283 * 0.58)
+            },
+            {
+                key: "obesidad_1",
+                label: "Obesidad tipo 1",
+                min: 30,
+                max: 35,
+                color: "#fb923c",
+                badgeClass: "bg-orange-500/10 text-orange-400 border-orange-500/30",
+                description: "Clasificación de Obesidad Grado I. Existe un incremento moderado de riesgo metabólico y articular.",
+                advice: "Inicia un plan integral personalizado que combine déficit calórico controlado y entrenamiento de fuerza progresivo.",
+                gaugeOffset: 283 - (283 * 0.74)
+            },
+            {
+                key: "obesidad_2",
+                label: "Obesidad tipo 2",
+                min: 35,
+                max: 40,
+                color: "#f87171",
+                badgeClass: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+                description: "Clasificación de Obesidad Grado II (Riesgo Elevado). Puede asociarse a hipertensión, dislipidemia o resistencia a la insulina.",
+                advice: "Se recomienda encarecidamente la orientación interdisciplinaria con endocrinología y nutrición médica.",
+                gaugeOffset: 283 - (283 * 0.88)
+            },
+            {
+                key: "obesidad_3",
+                label: "Obesidad tipo 3",
+                min: 40,
+                max: 999,
+                color: "#c084fc",
+                badgeClass: "bg-purple-500/10 text-purple-400 border-purple-500/30",
+                description: "Clasificación de Obesidad Grado III (Severa / Mórbida). Presenta un impacto clínico relevante para la salud global.",
+                advice: "Prioriza una consulta médica especializada para un abordaje terapéutico integral, preventivo y supervisado.",
+                gaugeOffset: 0
+            }
+        ];
+
+        // Input Bindings & Listeners
+        const pesoInput = document.getElementById('peso');
+        const pesoRange = document.getElementById('peso-range');
+        const pesoDisplay = document.getElementById('peso-display');
+
+        const tallaInput = document.getElementById('talla');
+        const tallaRange = document.getElementById('talla-range');
+
+        pesoInput.addEventListener('input', () => {
+            pesoRange.value = pesoInput.value;
+            pesoDisplay.innerText = parseFloat(pesoInput.value || 0).toFixed(1);
+            playSound(400 + parseFloat(pesoInput.value), 'sine', 0.03);
+            calculateIMC();
+        });
+
+        pesoRange.addEventListener('input', () => {
+            pesoInput.value = pesoRange.value;
+            pesoDisplay.innerText = parseFloat(pesoRange.value).toFixed(1);
+            playSound(400 + parseFloat(pesoRange.value), 'sine', 0.03);
+            calculateIMC();
+        });
+
+        tallaInput.addEventListener('input', () => {
+            tallaRange.value = tallaInput.value;
+            playSound(500, 'sine', 0.03);
+            calculateIMC();
+        });
+
+        tallaRange.addEventListener('input', () => {
+            tallaInput.value = tallaRange.value;
+            playSound(500, 'sine', 0.03);
+            calculateIMC();
+        });
+
+        function setPreset(p, t) {
+            if (currentUnit === 'cm') {
+                tallaInput.value = Math.round(t * 100);
+            } else {
+                tallaInput.value = t.toFixed(2);
+            }
+            tallaRange.value = tallaInput.value;
+
+            pesoInput.value = p;
+            pesoRange.value = p;
+            pesoDisplay.innerText = p.toFixed(1);
+
+            playSound(600, 'triangle', 0.1);
+            calculateIMC();
+        }
+
+        // Calculation & Dynamic UI Updates
+        let history = JSON.parse(localStorage.getItem('imc_3d_history') || '[]');
+
+        function calculateIMC() {
+            let p = parseFloat(pesoInput.value) || 0;
+            let t = parseFloat(tallaInput.value) || 0;
+
+            if (p <= 0 || t <= 0) return;
+
+            // Normalize height to meters
+            let tallaMeters = currentUnit === 'cm' ? t / 100 : t;
+
+            // Formula: IMC = peso / (talla * talla)
+            const imc = p / (tallaMeters * tallaMeters);
+            const imcFixed = imc.toFixed(1);
+
+            // Update numeric text
+            document.getElementById('imc-number').innerText = imcFixed;
+
+            // Ideal weight range calculation (18.5 <= IMC < 25)
+            const minIdeal = (18.5 * (tallaMeters * tallaMeters)).toFixed(1);
+            const maxIdeal = (24.9 * (tallaMeters * tallaMeters)).toFixed(1);
+            document.getElementById('ideal-weight-range').innerText = `${minIdeal} - ${maxIdeal}`;
+
+            // Find classification
+            let matchedCategory = IMC_CATEGORIES[0];
+            for (let cat of IMC_CATEGORIES) {
+                if (imc >= cat.min && imc < cat.max) {
+                    matchedCategory = cat;
+                    break;
+                }
+            }
+
+            // Update UI elements
+            document.getElementById('category-title').innerText = matchedCategory.label;
+            document.getElementById('category-title').style.color = matchedCategory.color;
+
+            const badge = document.getElementById('category-badge');
+            badge.innerText = matchedCategory.label;
+            badge.className = `px-3.5 py-1.5 rounded-2xl text-xs font-black uppercase tracking-wider border shadow-3d-subtle transition-all duration-500 ${matchedCategory.badgeClass}`;
+
+            document.getElementById('category-desc').innerText = matchedCategory.description;
+            document.getElementById('health-advice').innerText = matchedCategory.advice;
+
+            // Calculate exact gauge arc offset (283 is total perimeter)
+            let normalizedRatio = Math.min(Math.max((imc - 12) / (42 - 12), 0), 1);
+            let targetOffset = 283 - (283 * normalizedRatio);
+            document.getElementById('gauge-fill').style.strokeDashoffset = targetOffset;
+
+            // Celebration effect for healthy weight
+            if (matchedCategory.key === "peso_normal" && window.lastCat !== "peso_normal") {
+                try {
+                    confetti({
+                        particleCount: 40,
+                        spread: 70,
+                        origin: { y: 0.6 }
+                    });
+                } catch(e) {}
+            }
+            window.lastCat = matchedCategory.key;
+
+            saveHistoryLog(imcFixed, matchedCategory.label, matchedCategory.color);
+        }
+
+        // History Management
+        function saveHistoryLog(imc, label, color) {
+            const entry = {
+                imc,
+                label,
+                color,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+
+            if (history.length > 0 && history[0].imc === imc && history[0].label === label) return;
+
+            history.unshift(entry);
+            if (history.length > 6) history.pop();
+
+            localStorage.setItem('imc_3d_history', JSON.stringify(history));
+            renderHistoryLog();
+        }
+
+        function renderHistoryLog() {
+            const container = document.getElementById('history-container');
+            if (history.length === 0) {
+                container.innerHTML = `<p class="text-xs text-slate-500 col-span-3 text-center py-2">Sin registros recientes.</p>`;
+                return;
+            }
+
+            container.innerHTML = history.map(item => `
+                <div class="glass-3d-inset rounded-xl p-2.5 flex items-center justify-between border border-slate-800">
+                    <div>
+                        <span class="font-mono font-black text-sm text-slate-100">${item.imc}</span>
+                        <span class="block text-[10px] font-bold" style="color: ${item.color}">${item.label}</span>
+                    </div>
+                    <span class="text-[9px] font-mono text-slate-500">${item.time}</span>
+                </div>
+            `).join('');
+        }
+
+        function clearHistory() {
+            history = [];
+            localStorage.removeItem('imc_3d_history');
+            renderHistoryLog();
+            playSound(300, 'square', 0.1);
+        }
+
+        function resetDefaults() {
+            pesoInput.value = 70.0;
+            pesoRange.value = 70.0;
+            pesoDisplay.innerText = "70.0";
+            tallaInput.value = 1.70;
+            tallaRange.value = 1.70;
+            if (currentUnit === 'cm') switchUnit('m');
+            calculateIMC();
+            playSound(700, 'sine', 0.1);
+        }
+
+        // Initialization
+        window.onload = function() {
+            lucide.createIcons();
+            renderHistoryLog();
+            calculateIMC();
+
+            // Initialize VanillaTilt for 3D parallax effects
+            if (typeof VanillaTilt !== 'undefined') {
+                VanillaTilt.init(document.querySelectorAll("[data-tilt]"));
+            }
+        };
+    </script>
+</body>
+</html>
